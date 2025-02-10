@@ -269,18 +269,36 @@ elif seccion == "Modelo XGBoost":
     st.write(f"**Precision Score:** {precision:.4f}")
     
     
+elif seccion == "Modelo de redes neuronales":
+    st.subheader("Modelo planteado con redes neuronales")
 
-def load_model():
-    filename = 'best_model.pkl.gz'
-    with gzip.open(filename, 'rb') as f:
-        model2 = pickle.load(f)
-    return model2
+    # Convertir X_test y y_test a arrays de NumPy
+    X_test = np.array(X_test)
+    y_test = np.array(y_test)
 
-model2 = load_model()
-model2.compile(loss='binary_crossentropy', optimizer=Adam(), metrics=['accuracy'])
+    # Cargar el modelo
+    def load_model():
+        filename = 'best_model.pkl.gz'
+        with gzip.open(filename, 'rb') as f:
+            model2 = pickle.load(f)
+        return model2
 
-# Evaluación del modelo
-_, test_accuracy = model2.evaluate(X_test, y_test, verbose=0)
-st.write(f'**Accuracy del modelo en datos de prueba:** {round(test_accuracy * 100, 2)}%')
+    model2 = load_model()
+    model2.compile(loss='binary_crossentropy', optimizer=Adam(), metrics=['accuracy'])
 
-  
+    # Gráficos de Accuracy y Loss
+    fig, axes = plt.subplots(1, 2, figsize=(10, 3))
+    sns.lineplot(y=accuracy, x=range(1, len(accuracy) + 1), marker='o', ax=axes[0])
+    sns.lineplot(y=loss, x=range(1, len(loss) + 1), marker='o', ax=axes[1])
+    axes[0].set_title('Accuracy')
+    axes[1].set_title('Loss')
+
+    # Mostrar gráficos en Streamlit
+    st.pyplot(fig)
+
+    # Evaluación del modelo
+    try:
+        _, test_accuracy = model2.evaluate(X_test, y_test, verbose=0)
+        st.write(f'**Accuracy del modelo en datos de prueba:** {round(test_accuracy * 100, 2)}%')
+    except Exception as e:
+        st.error(f"Error al evaluar el modelo: {str(e)}")
