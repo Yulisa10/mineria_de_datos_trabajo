@@ -1,0 +1,10 @@
+tensorflow
+scikit-learn
+seaborn
+pandas
+matplotlib
+streamlit
+xgboost
+accuracy
+shap
+scaler
