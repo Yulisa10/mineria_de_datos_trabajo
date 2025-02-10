@@ -255,7 +255,7 @@ elif seccion == "Modelo XGBoost":
 
     
     y_pred = model.predict(X_test_scaled)
-    occupancy = "Ocupado" if y_pred[0][0] > 0.5 else "No Ocupado"
+    occupancy = "Ocupado" if y_pred[0] > 0.5 else "No Ocupado"
     st.write(f"Predicción: {occupancy}")
     accuracy = accuracy_score(y_test, y_pred)
     f1 = f1_score(y_test, y_pred)
