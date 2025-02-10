@@ -154,7 +154,7 @@ elif seccion == "Mapa de calor de correlaciones":
 
 elif seccion == "Boxplots":
     st.subheader("Conjunto de boxplots")
-    st.image("Boxplots.jpg", use_container_width=True)
+    st.image("Boxplots.jpeg", use_container_width=True)
     st.write("""
     ### Análisis de Variables
 
