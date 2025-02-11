@@ -284,6 +284,19 @@ elif seccion == "Modelo de redes neuronales":
         return model2
 
     model2 = load_model()
+
+    # Verificar la forma de y_test
+    print(f"Forma de y_test: {y_test.shape}")  # Debe ser (número de muestras,)
+
+    # Si el modelo tiene una salida bidimensional, convertir y_test a one-hot encoding
+    if model2.output_shape[1] == 2:
+        from tensorflow.keras.utils import to_categorical
+        y_test_one_hot = to_categorical(y_test, num_classes=2)
+        print(f"Forma de y_test_one_hot: {y_test_one_hot.shape}")  # Debe ser (número de muestras, 2)
+    else:
+        y_test_one_hot = y_test
+
+    # Compilar el modelo
     model2.compile(loss='binary_crossentropy', optimizer=Adam(), metrics=['accuracy'])
 
     # Gráficos de Accuracy y Loss
@@ -298,7 +311,7 @@ elif seccion == "Modelo de redes neuronales":
 
     # Evaluación del modelo
     try:
-        _, test_accuracy = model2.evaluate(X_test, y_test, verbose=0)
+        _, test_accuracy = model2.evaluate(X_test, y_test_one_hot, verbose=0)
         st.write(f'**Accuracy del modelo en datos de prueba:** {round(test_accuracy * 100, 2)}%')
     except Exception as e:
         st.error(f"Error al evaluar el modelo: {str(e)}")
