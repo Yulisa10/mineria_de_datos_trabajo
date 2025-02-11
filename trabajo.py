@@ -56,15 +56,6 @@ def preprocess_data(df):
 X, y, scaler = preprocess_data(df)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Entrenar modelo MLP
-def train_mlp():
-    model = Sequential()
-    model.add(Dense(32, input_shape=(X_train.shape[1],), activation='relu'))
-    model.add(Dense(16, activation='relu'))
-    model.add(Dense(1, activation='sigmoid'))
-    model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
-    model.fit(X_train, y_train, epochs=50, batch_size=500, verbose=0)
-    return model
 
 # Mostrar contenido basado en la selección
 if seccion == "Vista previa de los datos":
@@ -214,7 +205,12 @@ elif seccion == "Conclusión: Selección del Mejor Modelo":
 
 
 elif seccion == "Modelo XGBoost":
-    st.subheader("Modelo planteado con XGBoost")
+    st.subheader("Resultados del modelo XGBoost")
+    y_pred_xgb = xgb_model.predict(X_test)
+    acc_xgb = accuracy_score(y_test, y_pred_xgb)
+    st.write(f"Exactitud del modelo XGBoost: {acc_xgb:.4f}")
+    st.write("Matriz de Confusión:")
+    st.write(confusion_matrix(y_test, y_pred_xgb))
 
     # Simulación de datos (sustituye esto con tus datos reales)
     X = df.drop(columns=["Occupancy"], errors='ignore')
@@ -258,27 +254,26 @@ elif seccion == "Modelo XGBoost":
     ax.set_ylabel('Características')
     st.pyplot(fig)
     
-elif seccion == "Entrenamiento del Modelo MLP":
-    st.subheader("Entrenamiento del Modelo MLP")
-    if st.button("Entrenar Modelo"):
-        model = train_mlp()
-        st.success("Modelo entrenado con éxito")
-        st.session_state["mlp_model"] = model
+elif seccion == "Modelo MLP":
+    st.subheader("Resultados del modelo MLP")
+    y_pred_mlp = (mlp_model.predict(X_test) > 0.5).astype("int32").flatten()
+    acc_mlp = accuracy_score(y_test, y_pred_mlp)
+    st.write(f"Exactitud del modelo MLP: {acc_mlp:.4f}")
+    st.write("Matriz de Confusión:")
+    st.write(confusion_matrix(y_test, y_pred_mlp))
+
 
 elif seccion == "Hacer una Predicción":
-    st.subheader("Hacer una Predicción")
-    def user_input():
-        features = {}
-        for col in df.drop(columns=["Occupancy"], errors='ignore').columns:
-            features[col] = st.slider(col, float(df[col].min()), float(df[col].max()), float(df[col].mean()))
-        return pd.DataFrame([features])
-    
-    if "mlp_model" in st.session_state:
-        input_data = user_input()
-        input_scaled = scaler.transform(input_data)
-        prediction = st.session_state["mlp_model"].predict(input_scaled)
-        occupancy = "Ocupado" if prediction[0][0] > 0.5 else "No Ocupado"
-        st.write(f"Predicción: {occupancy}")
+    st.subheader("Hacer una predicción con los modelos")
+    input_data = st.text_input("Ingrese los valores de las características separados por comas")
+    if input_data:
+        try:
+            input_values = np.array([float(x) for x in input_data.split(",")]).reshape(1, -1)
+            input_values_scaled = scaler.transform(input_values)
+            pred_best = best_model.predict(input_values_scaled)
+            st.write(f"Predicción Mejor Modelo: {'Ocupado' if pred_best[0] == 1 else 'No Ocupado'}")
+        except Exception as e:
+            st.write(f"Error en la entrada de datos: {e}")
 
  
 # Nueva sección con comparación gráfica de resultados
@@ -292,10 +287,6 @@ model.add(Dense(1, activation='sigmoid'))  # Capa de salida
 
 # Compila el modelo
 model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
-
-# Entrena el modelo
-st.write("Entrenando el modelo, por favor espera...")
-history = model.fit(X_train, y_train, epochs=50, batch_size=500, verbose=0, validation_data=(X_test, y_test))
 
 # Gráficos de entrenamiento y validación (pérdida y precisión)
 st.subheader("Rendimiento del Modelo durante el Entrenamiento")
