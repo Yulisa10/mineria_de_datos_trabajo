@@ -337,4 +337,3 @@ plt.ylabel('Clase')
 plt.title('Comparación entre valores reales y predichos')
 plt.legend()
 plt.show()
-
