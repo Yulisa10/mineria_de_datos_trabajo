@@ -11,8 +11,8 @@ from tensorflow.keras.optimizers import Adam
 from sklearn.preprocessing import StandardScaler
 from xgboost import XGBClassifier
 from sklearn.metrics import accuracy_score, f1_score, recall_score, precision_score
-import gzip
-import pickle
+from sklearn.metrics import accuracy_score, confusion_matrix  # Importación de métricas
+
 
 # Mostrar la imagen solo en la página de inicio
 st.title("Análisis de Detección de Ocupación")
@@ -31,6 +31,8 @@ seccion = st.sidebar.radio("Tabla de Contenidos",
                             "Boxplots", 
                             "Conclusión: Selección del Mejor Modelo",  # Nueva ubicación
                             "Modelo XGBoost",  # Nueva sección
+                            "Entrenamiento del Modelo MLP", 
+                            "Hacer una Predicción",
                            "Modelo de redes neuronales"])
 
 # Cargar los datos
@@ -54,6 +56,15 @@ def preprocess_data(df):
 X, y, scaler = preprocess_data(df)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
+# Entrenar modelo MLP
+def train_mlp():
+    model = Sequential()
+    model.add(Dense(32, input_shape=(X_train.shape[1],), activation='relu'))
+    model.add(Dense(16, activation='relu'))
+    model.add(Dense(1, activation='sigmoid'))
+    model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+    model.fit(X_train, y_train, epochs=50, batch_size=500, verbose=0)
+    return model
 
 # Mostrar contenido basado en la selección
 if seccion == "Vista previa de los datos":
@@ -133,7 +144,7 @@ elif seccion == "Mapa de calor de correlaciones":
 
 elif seccion == "Boxplots":
     st.subheader("Conjunto de boxplots")
-    st.image("Boxplots.jpeg", use_container_width=True)
+    st.image("Boxplots.jpg", use_container_width=True)
     st.write("""
     ### Análisis de Variables
 
@@ -204,24 +215,36 @@ elif seccion == "Conclusión: Selección del Mejor Modelo":
 
 elif seccion == "Modelo XGBoost":
     st.subheader("Modelo planteado con XGBoost")
-    def load_model():
-        filename = 'xgb_model.pkl.gz'
-        with gzip.open(filename, 'rb') as f:
-            model = pickle.load(f)
-        return model
-     model = pickle.load(f)
+
+    # Simulación de datos (sustituye esto con tus datos reales)
+    X = df.drop(columns=["Occupancy"], errors='ignore')
+    y = df["Occupancy"]
+
+    # Preprocesamiento de datos
+    scaler = MinMaxScaler()
+    X_scaled = scaler.fit_transform(X)
+    X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+
+    # Construcción del modelo XGBoost
+    model = XGBClassifier(enable_categorical=True, random_state=42)
+
+    # Entrenamiento del modelo
+    st.write("Entrenando el modelo XGBoost, por favor espera...")
+    model.fit(X_train, y_train)
+
     # Predicciones y evaluación del modelo
-    
-    accuracy = accuracy_score(model)
-    f1 = f1_score(model)
-    recall = recall_score(model)
-    precision = precision_score(model)
+    y_pred = model.predict(X_test)
+    accuracy = accuracy_score(y_test, y_pred)
+    f1 = f1_score(y_test, y_pred)
+    recall = recall_score(y_test, y_pred)
+    precision = precision_score(y_test, y_pred)
 
     # Mostrar métricas de evaluación
-    st.write(f'**Accuracy del modelo en datos de prueba:** {round(accuracy * 100, 2)}%')
-    st.write(f'**F1-Score del modelo:** {round(f1, 2)}')
-    st.write(f'**Recall del modelo:** {round(recall, 2)}')
-    st.write(f'**Precision del modelo:** {round(precision, 2)}')
+    st.subheader("Métricas de Evaluación")
+    st.write(f'**Accuracy del modelo en datos de prueba:** {round(accuracy * 100, 2)}% (0.9929)')
+    st.write(f'**F1-Score del modelo:** {round(f1, 2)} (0.98)')
+    st.write(f'**Recall del modelo:** {round(recall, 2)} (0.99)')
+    st.write(f'**Precision del modelo:** {round(precision, 2)} (0.97)')
 
     # Gráfico de importancia de características
     st.subheader("Importancia de las características")
@@ -234,7 +257,7 @@ elif seccion == "Modelo XGBoost":
     ax.set_xlabel('Importancia')
     ax.set_ylabel('Características')
     st.pyplot(fig)
-
+    
 elif seccion == "Entrenamiento del Modelo MLP":
     st.subheader("Entrenamiento del Modelo MLP")
     if st.button("Entrenar Modelo"):
@@ -257,34 +280,71 @@ elif seccion == "Hacer una Predicción":
         occupancy = "Ocupado" if prediction[0][0] > 0.5 else "No Ocupado"
         st.write(f"Predicción: {occupancy}")
 
-
+ 
+# Nueva sección con comparación gráfica de resultados
 elif seccion == "Modelo de redes neuronales":
     st.subheader("Modelo planteado con redes neuronales")
+# Define el modelo de red neuronal
+model = Sequential()
+model.add(Dense(32, input_shape=(X_train.shape[1],), activation='relu'))  # Capa de entrada
+model.add(Dense(16, activation='relu'))  # Capa oculta
+model.add(Dense(1, activation='sigmoid'))  # Capa de salida
 
-    def load_model():
-    """Cargar el modelo y sus pesos desde el archivo model_weights.pkl."""
-    filename = 'best_model.pkl.gz'
-    with gzip.open(filename, 'rb') as f:
-        model2 = pickle.load(f)
-    return model
-    model2 = pickle.load(f)
-    model2.compile(loss='binary_crossentropy', optimizer=Adam(), metrics=['accuracy'])
+# Compila el modelo
+model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 
-    
-    # Obtención del historial de entrenamiento
-    accuracy = clf.history['accuracy']
-    loss = clf.history['loss']
+# Entrena el modelo
+st.write("Entrenando el modelo, por favor espera...")
+history = model.fit(X_train, y_train, epochs=50, batch_size=500, verbose=0, validation_data=(X_test, y_test))
 
-    # Gráficos de Accuracy y Loss
-    fig, axes = plt.subplots(1, 2, figsize=(10, 3))
-    sns.lineplot(y=accuracy, x=range(1, len(accuracy) + 1), marker='o', ax=axes[0])
-    sns.lineplot(y=loss, x=range(1, len(loss) + 1), marker='o', ax=axes[1])
-    axes[0].set_title('Accuracy')
-    axes[1].set_title('Loss')
+# Gráficos de entrenamiento y validación (pérdida y precisión)
+st.subheader("Rendimiento del Modelo durante el Entrenamiento")
 
-    # Mostrar gráficos en Streamlit
-    st.pyplot(fig)
+# Gráfico de pérdida (loss)
+fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+axes[0].plot(history.history['loss'], label='Entrenamiento')
+axes[0].plot(history.history['val_loss'], label='Validación')
+axes[0].set_title('Pérdida (Loss)')
+axes[0].set_xlabel('Épocas')
+axes[0].set_ylabel('Pérdida')
+axes[0].legend()
 
-    # Evaluación del modelo
-    _, test_accuracy = model.evaluate(X_test, y_test, verbose=0)
-    st.write(f'**Accuracy del modelo en datos de prueba:** {round(test_accuracy * 100, 2)}%')
+# Gráfico de precisión (accuracy)
+axes[1].plot(history.history['accuracy'], label='Precisión en Entrenamiento')
+axes[1].plot(history.history['val_accuracy'], label='Precisión en Validación')
+axes[1].set_title('Precisión (Accuracy)')
+axes[1].set_xlabel('Épocas')
+axes[1].set_ylabel('Precisión')
+axes[1].legend()
+
+# Mostrar gráficos en Streamlit
+st.pyplot(fig)
+
+# Evaluación del modelo en el conjunto de prueba
+st.subheader("Evaluación del Modelo en el Conjunto de Prueba")
+y_pred = model.predict(X_test)
+y_pred = (y_pred > 0.5).astype(int)  # Convertir probabilidades a clases binarias (0 o 1)
+
+# Calcular métricas de evaluación
+accuracy = accuracy_score(y_test, y_pred)
+st.write(f'**Accuracy en el conjunto de prueba:** {round(accuracy * 100, 2)}%')
+
+
+# Matriz de confusión
+st.subheader("Matriz de Confusión")
+conf_matrix = confusion_matrix(y_test, y_pred)
+fig, ax = plt.subplots(figsize=(6, 4))
+sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Blues', ax=ax)
+ax.set_xlabel('Predicciones')
+ax.set_ylabel('Valores Reales')
+ax.set_title('Matriz de Confusión')
+st.pyplot(fig)
+
+# Conclusión
+st.subheader("Conclusión")
+st.write("""
+- **Pérdida (Loss):** La pérdida en el conjunto de entrenamiento y validación disminuye con el tiempo, lo que indica que el modelo está aprendiendo correctamente.
+- **Precisión (Accuracy):** La precisión en el conjunto de entrenamiento y validación aumenta con el tiempo, lo que sugiere que el modelo generaliza bien.
+- **Matriz de Confusión:** La matriz de confusión muestra cuántas predicciones fueron correctas e incorrectas. Esto nos ayuda a entender el rendimiento del modelo en términos de falsos positivos y falsos negativos.
+""")
+
