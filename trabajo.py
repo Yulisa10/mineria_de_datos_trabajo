@@ -315,3 +315,53 @@ elif seccion == "Modelo de redes neuronales":
         st.write(f'**Accuracy del modelo en datos de prueba:** {round(test_accuracy * 100, 2)}%')
     except Exception as e:
         st.error(f"Error al evaluar el modelo: {str(e)}")
+
+
+# Definir el modelo
+model = Sequential([
+    Dense(32, input_shape=(X_train.shape[1],), activation='relu'),
+    Dense(16, activation='relu'),
+    Dense(1, activation='sigmoid')
+])
+
+# Compilar el modelo
+model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+
+# Entrenar el modelo
+clf = model.fit(X_train, y_train, epochs=50, batch_size=500, verbose=0, validation_data=(X_test, y_test))
+
+# Graficar la evolución del entrenamiento
+plt.figure(figsize=(12, 5))
+
+# Gráfico de pérdida
+plt.subplot(1, 2, 1)
+plt.plot(clf.history['loss'], label='Entrenamiento')
+plt.plot(clf.history['val_loss'], label='Validación')
+plt.xlabel('Épocas')
+plt.ylabel('Pérdida')
+plt.title('Evolución de la pérdida')
+plt.legend()
+
+# Gráfico de precisión
+plt.subplot(1, 2, 2)
+plt.plot(clf.history['accuracy'], label='Entrenamiento')
+plt.plot(clf.history['val_accuracy'], label='Validación')
+plt.xlabel('Épocas')
+plt.ylabel('Precisión')
+plt.title('Evolución de la precisión')
+plt.legend()
+
+plt.show()
+
+# Predicciones en X_test
+y_pred = (model.predict(X_test) > 0.5).astype(int)
+
+# Comparación gráfica de valores reales vs predichos
+plt.figure(figsize=(8, 6))
+plt.scatter(range(len(y_test)), y_test, label='Valores Reales', alpha=0.6)
+plt.scatter(range(len(y_pred)), y_pred, label='Predicciones', alpha=0.6)
+plt.xlabel('Índice de muestra')
+plt.ylabel('Clase')
+plt.title('Comparación entre valores reales y predichos')
+plt.legend()
+plt.show()
