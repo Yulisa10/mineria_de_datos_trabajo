@@ -8,60 +8,53 @@ from sklearn.preprocessing import MinMaxScaler
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense
 from tensorflow.keras.optimizers import Adam
-from sklearn.preprocessing import StandardScaler
 from xgboost import XGBClassifier
 from sklearn.metrics import accuracy_score, f1_score, recall_score, precision_score
 import gzip
 import pickle
-from sklearn.metrics import accuracy_score
-import matplotlib.pyplot as plt
-import shap
-import xgboost as xgb
-from sklearn.preprocessing import StandardScaler
-from sklearn.ensemble import RandomForestClassifier
-loss = []
-accuracy = []
-# Cargar los datos
+
+# Cargar los datos desde el repositorio de GitHub
 def load_data():
     df_train = pd.read_csv("https://raw.githubusercontent.com/JuanPablo9999/Mineria_de_datos_streamlit/main/datatrain.csv")
     df_test = pd.read_csv("https://raw.githubusercontent.com/JuanPablo9999/Mineria_de_datos_streamlit/main/datatest.csv")
     df = pd.concat([df_train, df_test], axis=0)
     df.drop(columns=["id", "date"], inplace=True, errors='ignore')
     return df
+
 df = load_data()
 
-# Preprocesamiento
+# Preprocesamiento de datos
 def preprocess_data(df):
     X = df.drop(columns=["Occupancy"], errors='ignore')
     y = df["Occupancy"]
     scaler = MinMaxScaler()
     X_scaled = scaler.fit_transform(X)
-    X_test_scaled = scaler.fit_transform(X)
-    return X_scaled, y, scaler 
+    return X_scaled, y, scaler
 
 X, y, scaler = preprocess_data(df)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-                                                        
-X, y, scaler = preprocess_data(df)
+# Cargar el modelo XGBoost
+def load_xgb_model():
+    filename = 'xgb_model.pkl.gz'
+    with gzip.open(filename, 'rb') as f:
+        model = pickle.load(f)
+    return model
 
-def preprocess_data(df):
-    features = ['col1', 'col2', 'col3']  # Ajusta con los nombres reales
-    target = 'target_col'  # Ajusta con la variable objetivo
-    X = df[features]
-    y = df[target]
-    from sklearn.preprocessing import StandardScaler
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
-    return X_scaled, y, scaler
+xgb_model = load_xgb_model()
 
+# Cargar el modelo de redes neuronales
+def load_nn_model():
+    filename = 'best_model.pkl.gz'
+    with gzip.open(filename, 'rb') as f:
+        model = pickle.load(f)
+    return model
 
-# Mostrar la imagen solo en la página de inicio
+nn_model = load_nn_model()
+
+# Interfaz de Streamlit
 st.title("Análisis de Detección de Ocupación")
 st.write("Grupo: Yulisa Ortiz Giraldo y Juan Pablo Noreña Londoño")
-if "image_displayed" not in st.session_state:
-    st.image("image1.jpg", use_container_width=True)
-    st.session_state["image_displayed"] = True  # Marcar que la imagen ya se mostró
 
 # Crear una tabla de contenido en la barra lateral
 seccion = st.sidebar.radio("Tabla de Contenidos", 
@@ -71,10 +64,9 @@ seccion = st.sidebar.radio("Tabla de Contenidos",
                             "Mapa de calor de correlaciones", 
                             "Distribución de la variable objetivo", 
                             "Boxplots", 
-                            "Modelo XGBoost",  # Nueva sección
-                           "Modelo de redes neuronales",
-                           "Conclusión: Selección del Mejor Modelo"])
-
+                            "Modelo XGBoost", 
+                            "Modelo de redes neuronales",
+                            "Conclusión: Selección del Mejor Modelo"])
 
 # Mostrar contenido basado en la selección
 if seccion == "Vista previa de los datos":
@@ -92,7 +84,6 @@ elif seccion == "Análisis Descriptivo":
     st.subheader("Resumen de los datos")
     st.write(df.describe())
     st.subheader("Histograma de Temperature")
-    # Temperatura
     fig, ax = plt.subplots(figsize=(8, 6))
     ax.hist(x=df["Temperature"], bins=30, color='blue', edgecolor='black', alpha=0.7)
     ax.set_xlabel('Temperature')
@@ -100,43 +91,7 @@ elif seccion == "Análisis Descriptivo":
     ax.set_title('Histograma de Temperature')
     st.pyplot(fig)
     st.write("Del histograma anterior, se denota que la mayoría de imágenes tomadas de la habitación captaron una temperatura de entre 20°C y 21°C, siendo una temperatura ambiente la que más predomina en el conjunto de datos. Además, se observa que la temperatura mínima registrada es de 19°C y la máxima es un poco superior a 24°C. Por tanto, en la habitación no hay presencia de temperaturas que se consideren bajas o altas.")
-    #  Humidity
-    st.subheader("Histograma de Humidity")
-    fig, ax = plt.subplots(figsize=(8, 6))
-    ax.hist(x=df["Humidity"], bins=30, color='blue', edgecolor='black', alpha=0.7)
-    ax.set_xlabel('Humidity')
-    ax.set_ylabel('Frecuencia')
-    ax.set_title('Histograma de Humidity')
-    st.pyplot(fig)
-    st.write("De la variable “Humidity”, se observa que la humedad se encuentra entre aproximadamente un 16% y un 40%. Para su interpretación en este caso, se debe conocer cuáles son los valores de humedad normales en una habitación, para ello, la empresa Philips (sin fecha) en su publicación “¿Cómo medir la humedad recomendada en casa?” afirma que la humedad ideal debe encontrarse entre 30% y 60% para la conservación de los materiales de las paredes y el piso; por otra parte, en el blog Siber. (n.d.) mencionan que el ser humano puede estar en espacios con una humedad de 20% a 75%. Teniendo en cuenta lo anterior, se puede afirmar que la humedad en la mayoría de los datos es adecuada para las personas, para los casos cuyo valor de humedad es menor a 20% no resulta ideal pero no debería ser un inconveniente significativo.")
-    # HumidityRatio
-    st.subheader("Histograma de HumidityRatio")
-    fig, ax = plt.subplots(figsize=(8, 6))
-    ax.hist(x=df["HumidityRatio"], bins=30, color='blue', edgecolor='black', alpha=0.7)
-    ax.set_xlabel('HumidityRatio')
-    ax.set_ylabel('Frecuencia')
-    ax.set_title('Histograma de HumidityRatio')
-    st.pyplot(fig)
-    st.write("Este histograma corresponde a la cantidad derivada de la temperatura y la humedad relativa dada en kilogramo de vapor de agua por kilogramo de aire, los valores se encuentran entre 0.002 kg vapor de agua/kg de aire hasta 0.0065 kg vapor de agua/ kg de aire aproximadamente. Según la explicación de la variable anterior, los resultados de la relación se encuentran en un rango adecuado.")
-    # Light
-    st.subheader("Histograma de Light")
-    fig, ax = plt.subplots(figsize=(8, 6))
-    ax.hist(x=df["Light"], bins=30, color='blue', edgecolor='black', alpha=0.7)
-    ax.set_xlabel('Light')
-    ax.set_ylabel('Frecuencia')
-    ax.set_title('Histograma de Light')
-    st.pyplot(fig)
-    st.write("De la variable Light, se observa que en la gran mayoría de los datos no hubo presencia de luz, no obstante, se denota el incremento en los valores cercanos a 500lux, esto indica que en estos casos sí se hizo uso de la luz eléctrica en la habitación debido al flujo luminoso provocado por el bombillo. Este podría ser un factor importante en la determinación de sí la habitación está ocupada o no, pero esto se confirmará más adelante en los resultados.")
-    # CO2
-    st.subheader("Histograma de CO2")
-    fig, ax = plt.subplots(figsize=(8, 6))
-    ax.hist(x=df["CO2"], bins=30, color='blue', edgecolor='black', alpha=0.7)
-    ax.set_xlabel('CO2')
-    ax.set_ylabel('Frecuencia')
-    ax.set_title('Histograma de CO2')
-    st.pyplot(fig)
-    st.write("Para la variable de CO2, se observa que los niveles de CO2 dados en ppm (partículas por millón) de aproximadamente 400 a 700pm son los más presentes en el conjunto de datos. Se registran más casos donde los niveles de CO2 son mucho mayores a los recurrentes, llegando hasta los 2000ppm. Para comprender la tolerancia de una persona hacia el CO2, la empresa Enectiva (2017) en su publicación “Efectos de la concentración de CO₂ para la salud humana” expone que las habitaciones deben tener niveles de CO2 máximo recomendado en 1200-1500ppm, a partir de este valor pueden presentarse efectos secundarios sobre las personas, como la fatiga y la pérdida de concentración; a niveles mayores a los presentes en el histograma puede provocar aumento del ritmo cardíaco, dificultades respiratorias, náuseas, e inclusive la pérdida de la consciencia. Los niveles de CO2 pueden ser un indicativo clave para determinar sí la habitación está ocupada o no debido a la naturaleza del ser humano de expulsar dióxido de carbono “CO2” en su exhalación, aunque debe tenerse en cuenta que un nivel elevado de CO2 puede deberse a razones diferentes del proceso de respiración de la persona.")
-    
+
 elif seccion == "Distribución de la variable objetivo":
     st.subheader("Distribución de la variable objetivo")
     fig, ax = plt.subplots()
@@ -154,7 +109,7 @@ elif seccion == "Mapa de calor de correlaciones":
 
 elif seccion == "Boxplots":
     st.subheader("Conjunto de boxplots")
-    st.image("Boxplots.jpeg", use_container_width=True)
+    st.image("Boxplots.jpg", use_container_width=True)
     st.write("""
     ### Análisis de Variables
 
@@ -187,10 +142,28 @@ elif seccion == "Boxplots":
     La ocupación tiene un impacto claro en **CO2, Light (luz) y Temperature (temperatura)**, aumentando sus valores en comparación con la falta de ocupación. En particular, la luz tiende a ser más alta y variable cuando hay ocupación. Otras variables como la humedad presentan cambios menores, pero no son significativos.
     """)
 
-# Nueva sección: Conclusión sobre la selección del mejor modelo
+elif seccion == "Modelo XGBoost":
+    st.subheader("Modelo XGBoost")
+    y_pred = xgb_model.predict(X_test)
+    accuracy = accuracy_score(y_test, y_pred)
+    f1 = f1_score(y_test, y_pred)
+    recall = recall_score(y_test, y_pred)
+    precision = precision_score(y_test, y_pred)
+
+    st.write("### Métricas de Evaluación")
+    st.write(f"**Accuracy:** {accuracy:.4f}")
+    st.write(f"**F1 Score:** {f1:.4f}")
+    st.write(f"**Recall Score:** {recall:.4f}")
+    st.write(f"**Precision Score:** {precision:.4f}")
+
+elif seccion == "Modelo de redes neuronales":
+    st.subheader("Modelo de redes neuronales")
+    _, test_accuracy = nn_model.evaluate(X_test, y_test, verbose=0)
+    st.write(f'**Accuracy del modelo en datos de prueba:** {round(test_accuracy * 100, 2)}%')
+
 elif seccion == "Conclusión: Selección del Mejor Modelo":
-    st.subheader("Conclusión: Selección del Mejor Modelo (XGBoost)")
-    st.markdown("""
+    st.subheader("Conclusión: Selección del Mejor Modelo")
+    st.write("""
     Después de evaluar varios modelos de machine learning para la tarea de predecir la ocupación de habitaciones, se determinó que el **XGBoost Classifier** es el modelo más adecuado para este problema. A continuación, se detallan las razones por las que se seleccionó este modelo y por qué los otros no fueron la mejor opción:
 
     #### Razones para elegir XGBoost:
@@ -221,7 +194,6 @@ elif seccion == "Conclusión: Selección del Mejor Modelo":
     ### Conclusión Final:
     El **XGBoost Classifier** fue seleccionado como el mejor modelo debido a su alto rendimiento, capacidad para manejar el desequilibrio de clases, interpretabilidad de las características, eficiencia y robustez ante el overfitting. Estos factores lo convierten en la opción más adecuada para la tarea de predecir la ocupación de habitaciones, superando a otros modelos como Random Forest, Decision Tree, KNN y la red neuronal en este contexto específico.
     """)
-
 
 elif seccion == "Modelo XGBoost":  
     st.subheader("Modelo planteado con XGBoost")
@@ -365,3 +337,4 @@ plt.ylabel('Clase')
 plt.title('Comparación entre valores reales y predichos')
 plt.legend()
 plt.show()
+
