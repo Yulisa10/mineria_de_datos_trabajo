@@ -5,15 +5,18 @@ import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense
-from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.models import load_model
 from xgboost import XGBClassifier
 from sklearn.metrics import accuracy_score, f1_score, recall_score, precision_score
 import gzip
 import pickle
 
-# Cargar los datos desde el repositorio de GitHub
+# Configurar la aplicación
+st.set_page_config(page_title="Análisis de Detección de Ocupación", layout="wide")
+st.title("Análisis de Detección de Ocupación")
+st.write("Grupo: Yulisa Ortiz Giraldo y Juan Pablo Noreña Londoño")
+
+@st.cache_data
 def load_data():
     df_train = pd.read_csv("https://raw.githubusercontent.com/JuanPablo9999/Mineria_de_datos_streamlit/main/datatrain.csv")
     df_test = pd.read_csv("https://raw.githubusercontent.com/JuanPablo9999/Mineria_de_datos_streamlit/main/datatest.csv")
@@ -23,7 +26,7 @@ def load_data():
 
 df = load_data()
 
-# Preprocesamiento de datos
+@st.cache_data
 def preprocess_data(df):
     X = df.drop(columns=["Occupancy"], errors='ignore')
     y = df["Occupancy"]
@@ -34,211 +37,71 @@ def preprocess_data(df):
 X, y, scaler = preprocess_data(df)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Cargar el modelo XGBoost
+@st.cache_resource
 def load_xgb_model():
-    filename = 'xgb_model.pkl.gz'
-    with gzip.open(filename, 'rb') as f:
+    with gzip.open('xgb_model.pkl.gz', 'rb') as f:
         model = pickle.load(f)
     return model
 
 xgb_model = load_xgb_model()
 
-# Cargar el modelo de redes neuronales
-def load_nn_model():
-    filename = 'best_model.pkl.gz'
-    with gzip.open(filename, 'rb') as f:
-        model = pickle.load(f)
-    return model
+# Crear la barra lateral
+seccion = st.sidebar.radio("Tabla de Contenidos", [
+    "Vista previa de los datos", "Análisis Descriptivo", "Mapa de Calor", "Modelo XGBoost", "Predicción"
+])
 
-nn_model = load_nn_model()
-
-# Interfaz de Streamlit
-st.title("Análisis de Detección de Ocupación")
-st.write("Grupo: Yulisa Ortiz Giraldo y Juan Pablo Noreña Londoño")
-
-# Crear una tabla de contenido en la barra lateral
-seccion = st.sidebar.radio("Tabla de Contenidos", 
-                           ["Vista previa de los datos", 
-                            "Información del dataset", 
-                            "Análisis Descriptivo", 
-                            "Mapa de calor de correlaciones", 
-                            "Distribución de la variable objetivo", 
-                            "Boxplots", 
-                            "Modelo XGBoost", 
-                            "Modelo de redes neuronales",
-                            "Conclusión: Selección del Mejor Modelo"])
-
-# Mostrar contenido basado en la selección
 if seccion == "Vista previa de los datos":
     st.subheader("Vista previa de los datos")
     st.write(df.head())
-
-elif seccion == "Información del dataset":
-    st.subheader("Información del dataset")
+    st.write("### Información del Dataset")
     st.write(df.info())
-    st.write("La base de datos seleccionada para el desarrollo de la aplicación corresponde a un estudio diseñado para optimizar actividades de clasificación binaria para determinar sí una habitación está ocupada o no. Dentro de sus características, se recopilan mediciones ambientales tales como la temperatura, la humedad del ambiente, la luz o nivel de luminosidad, y niveles de CO2, donde, con base a estas se determina sí la habitación está ocupada. La información de ocupación se obtuvo mediante la obtención de imágenes capturadas por minuto, garantizando etiquetas precisas para la clasificación. Este conjunto de datos resulta muy importante y útil para la investigación basada en la detección ambiental y el diseño de sistemas de edificios inteligentes según sea el interés del usuario.")
-    st.write("La base cuenta con un total de 17.895 datos con un total de 8 variables, sin embargo, se utilizará una cantidad reducida de variables debido a que aquellas como “ID” y “Fecha” no aportan información relevante para la aplicación de los temas anteriormente tratados.")
-    st.write("El conjunto de datos fue obtenido del repositorio público Kaggle, ampliamente utilizado en investigaciones relacionadas con sistemas inteligentes y monitoreo ambiental. La fuente original corresponde al trabajo disponible en el siguiente enlace: https://www.kaggle.com/datasets/pooriamst/occupancy-detection.")
-
-elif seccion == "Análisis Descriptivo":
-    st.subheader("Resumen de los datos")
-    st.write(df.describe())
-    st.subheader("Histograma de Temperature")
-    fig, ax = plt.subplots(figsize=(8, 6))
-    ax.hist(x=df["Temperature"], bins=30, color='blue', edgecolor='black', alpha=0.7)
-    ax.set_xlabel('Temperature')
-    ax.set_ylabel('Frecuencia')
-    ax.set_title('Histograma de Temperature')
-    st.pyplot(fig)
-    st.write("Del histograma anterior, se denota que la mayoría de imágenes tomadas de la habitación captaron una temperatura de entre 20°C y 21°C, siendo una temperatura ambiente la que más predomina en el conjunto de datos. Además, se observa que la temperatura mínima registrada es de 19°C y la máxima es un poco superior a 24°C. Por tanto, en la habitación no hay presencia de temperaturas que se consideren bajas o altas.")
-
-elif seccion == "Distribución de la variable objetivo":
-    st.subheader("Distribución de la variable objetivo")
+    st.write("Distribución de la variable objetivo")
     fig, ax = plt.subplots()
     sns.countplot(x=df["Occupancy"], ax=ax)
     st.pyplot(fig)
-    st.write("De la variable respuesta “Occupancy”, se obtiene que en su mayoría de casos se tiene como resultado que la habitación no se encuentra ocupada, denotada con el valor de cero y por el valor 1 en el caso contrario. Se obtuvo que en el 78.9% de los casos la habitación está vacía, y en el 21.1% se encuentra ocupada.")
 
-elif seccion == "Mapa de calor de correlaciones":
-    st.subheader("Mapa de calor de correlaciones")
-    st.write("Se plantea la matriz de correlación de las variables mencionadas para verificar qué tan relacionadas se encuentran con la variable respuesta de “Occupancy” y así observar cuáles tendrían mayor incidencia en la toma de decisión:")
+elif seccion == "Análisis Descriptivo":
+    st.subheader("Análisis Descriptivo")
+    st.write(df.describe())
+    st.write("Histogramas de variables clave")
+    cols = ["Temperature", "Humidity", "Light", "CO2"]
+    for col in cols:
+        fig, ax = plt.subplots()
+        sns.histplot(df[col], bins=30, kde=True, ax=ax)
+        ax.set_title(f"Distribución de {col}")
+        st.pyplot(fig)
+
+elif seccion == "Mapa de Calor":
+    st.subheader("Mapa de Calor de Correlaciones")
     fig, ax = plt.subplots(figsize=(10, 5))
     sns.heatmap(df.corr(), vmin=-1, vmax=1, cmap="coolwarm", annot=True, ax=ax)
     st.pyplot(fig)
-    st.write("Según la matriz, la variable que más se correlaciona con la variable respuesta es la luz (“Light”), pues es una determinante importante en la ocupación de una habitación; seguido de ésta, se denotan las variables de temperatura y CO2, cuyas características se encuentran estrechamente relacionadas con la presencia de personas en un espacio. Por último, debe mencionarse que las variables relacionadas con la humedad presentan una muy baja correlación con la ocupación de una habitación, esto debe tenerse en cuenta en la formulación del modelo para la aplicación y considerar sí se eliminan estas variables dependiendo de los resultados que se obtengan.")
-
-elif seccion == "Boxplots":
-    st.subheader("Conjunto de boxplots")
-    st.image("Boxplots.jpg", use_container_width=True)
-    st.write("""
-    ### Análisis de Variables
-
-    #### CO2 (Dióxido de carbono):
-    - **Habitación vacía (rojo):** Niveles considerablemente más bajos, con una mediana en torno a 500ppm.
-    - **Habitación ocupada (verde):** Niveles mucho más altos, con una mediana cerca de 1000ppm.
-    - El nivel de CO2 aumenta notablemente con la ocupación, posiblemente debido a la respiración de las personas.
-
-    #### Humidity (Humedad):
-    - **Habitación vacía (rojo):** Mediana ligeramente por encima de 25, con dispersión moderada.
-    - **Habitación ocupada (verde):** Mediana cerca de 30, con valores más altos.
-    - La ocupación no parece variar mucho la humedad, en línea con la matriz de correlaciones.
-
-    #### HumidityRatio (Proporción de humedad):
-    - **Habitación vacía (rojo):** Valores concentrados alrededor de 0.0035.
-    - **Habitación ocupada (verde):** Valores ligeramente más altos, alrededor de 0.004.
-    - Aunque las diferencias no son grandes, la ocupación está asociada con un pequeño incremento en la proporción de humedad.
-
-    #### Light (Luz):
-    - **Habitación vacía (rojo):** Gran dispersión, con valores extremos muy altos.
-    - **Habitación ocupada (verde):** Valores más bajos y concentrados.
-    - La ocupación 0 (habitación vacía) está asociada con niveles de luz más altos y variables, posiblemente por la ausencia de personas que reduzcan el uso de iluminación artificial.
-
-    #### Temperature (Temperatura):
-    - **Habitación vacía (rojo):** Mediana cerca de 20°C, con dispersión moderada.
-    - **Habitación ocupada (verde):** Mediana ligeramente más alta, alrededor de 22°C.
-    - La temperatura es más alta con ocupación, posiblemente por el calor generado por las personas o el uso de calefacción.
-
-     #### Conclusión:
-    La ocupación tiene un impacto claro en **CO2, Light (luz) y Temperature (temperatura)**, aumentando sus valores en comparación con la falta de ocupación. En particular, la luz tiende a ser más alta y variable cuando hay ocupación. Otras variables como la humedad presentan cambios menores, pero no son significativos.
-    """)
 
 elif seccion == "Modelo XGBoost":
-    st.subheader("Modelo XGBoost")
+    st.subheader("Evaluación del Modelo XGBoost")
     y_pred = xgb_model.predict(X_test)
     accuracy = accuracy_score(y_test, y_pred)
     f1 = f1_score(y_test, y_pred)
     recall = recall_score(y_test, y_pred)
     precision = precision_score(y_test, y_pred)
-
+    
     st.write("### Métricas de Evaluación")
     st.write(f"**Accuracy:** {accuracy:.4f}")
     st.write(f"**F1 Score:** {f1:.4f}")
-    st.write(f"**Recall Score:** {recall:.4f}")
-    st.write(f"**Precision Score:** {precision:.4f}")
+    st.write(f"**Recall:** {recall:.4f}")
+    st.write(f"**Precision:** {precision:.4f}")
 
-elif seccion == "Modelo de redes neuronales":
-    st.subheader("Modelo de redes neuronales")
-    _, test_accuracy = nn_model.evaluate(X_test, y_test, verbose=0)
-    st.write(f'**Accuracy del modelo en datos de prueba:** {round(test_accuracy * 100, 2)}%')
-
-elif seccion == "Conclusión: Selección del Mejor Modelo":
-    st.subheader("Conclusión: Selección del Mejor Modelo")
-    st.write("""
-    Después de evaluar varios modelos de machine learning para la tarea de predecir la ocupación de habitaciones, se determinó que el **XGBoost Classifier** es el modelo más adecuado para este problema. A continuación, se detallan las razones por las que se seleccionó este modelo y por qué los otros no fueron la mejor opción:
-
-    #### Razones para elegir XGBoost:
-    1. **Alto Rendimiento en Precisión y F1-Score**:
-       - XGBoost demostró un rendimiento superior en términos de precisión y F1-Score, lo que indica que es capaz de predecir correctamente tanto las habitaciones ocupadas como las desocupadas. Esto es especialmente importante en problemas de clasificación donde el equilibrio entre precisión y recall es crucial.
-
-    2. **Manejo de Desequilibrio de Clases**:
-       - En problemas donde las clases están desequilibradas (por ejemplo, más datos de habitaciones desocupadas que ocupadas), XGBoost es conocido por su capacidad para manejar este desequilibrio de manera efectiva, lo que lo hace más robusto y confiable.
-
-    3. **Interpretabilidad de las Características**:
-       - XGBoost proporciona una clara interpretación de la importancia de las características, lo que permite identificar qué variables (como el nivel de CO2, la luz o la humedad) son más relevantes para la predicción. Esto es invaluable para entender el problema y tomar decisiones basadas en datos.
-
-    4. **Eficiencia y Escalabilidad**:
-       - XGBoost es un modelo altamente eficiente y escalable, lo que lo hace adecuado para conjuntos de datos más grandes y complejos. Aunque en este caso el conjunto de datos no es extremadamente grande, su eficiencia asegura un entrenamiento rápido y un rendimiento óptimo.
-
-    5. **Robustez ante Overfitting**:
-       - Gracias a sus técnicas de regularización, XGBoost es menos propenso al sobreajuste (overfitting) en comparación con otros modelos, lo que garantiza que el modelo generalice bien a nuevos datos.
-
-    #### Razones por las que otros modelos no fueron seleccionados:
-    - **Random Forest**: Aunque es un modelo potente, tiende a ser más lento y menos eficiente en términos de memoria en comparación con XGBoost. Además, XGBoost suele superar a Random Forest en términos de precisión y F1-Score en muchos casos.
+elif seccion == "Predicción":
+    st.subheader("Hacer una Predicción con XGBoost")
+    input_data = {}
+    for col in df.drop(columns=["Occupancy"], errors='ignore').columns:
+        input_data[col] = st.slider(col, float(df[col].min()), float(df[col].max()), float(df[col].mean()))
     
-    - **Decision Tree**: Es un modelo más simple y propenso al overfitting, especialmente en conjuntos de datos más complejos. No tiene la capacidad de regularización que tiene XGBoost, lo que lo hace menos confiable para generalizar.
-
-    - **K-Nearest Neighbors (KNN)**: Aunque es un modelo intuitivo, KNN es computacionalmente costoso y no maneja bien el desequilibrio de clases. Además, no proporciona una interpretación clara de la importancia de las características, lo que limita su utilidad en este contexto.
-
-    - **Red Neuronal**: Aunque las redes neuronales pueden ser muy poderosas, requieren una gran cantidad de datos y ajustes hiperparamétricos para alcanzar su máximo potencial. En este caso, el modelo secuencial utilizado es relativamente simple y no supera a XGBoost en términos de precisión o F1-Score.
-
-    ### Conclusión Final:
-    El **XGBoost Classifier** fue seleccionado como el mejor modelo debido a su alto rendimiento, capacidad para manejar el desequilibrio de clases, interpretabilidad de las características, eficiencia y robustez ante el overfitting. Estos factores lo convierten en la opción más adecuada para la tarea de predecir la ocupación de habitaciones, superando a otros modelos como Random Forest, Decision Tree, KNN y la red neuronal en este contexto específico.
-    """)
-
-elif seccion == "Modelo XGBoost":  
-    st.subheader("Modelo planteado con XGBoost")
-
-    X = df.drop(columns=["Occupancy"], errors='ignore')
-    y = df["Occupancy"]
-    scaler = MinMaxScaler()
-    X_scaled = scaler.fit_transform(X)
-    X_test_scaled = scaler.transform(X_test)
-    X_test_scaled = np.array(X_test_scaled)
-    X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
-    X_test = np.array(X_test)
-    y_test = np.array(y_test)
-    if isinstance(X_test_scaled, pd.DataFrame):
-      X_test_scaled = X_test_scaled.to_numpy()
-        
-    def load_model():
-        filename = 'xgb_model.pkl.gz'
-        with gzip.open(filename, 'rb') as f:
-            model = pickle.load(f)
-        return model
-    model=load_model()
-    
-    st.title("Predicción con Modelo XGBoost")         
-    st.subheader("Hacer una Predicción")
-    def user_input():
-        features = {}
-        for col in df.drop(columns=["Occupancy"], errors='ignore').columns:
-            features[col] = st.slider(col, float(df[col].min()), float(df[col].max()), float(df[col].mean()))
-        return pd.DataFrame([features])
-
-    
-    y_pred = model.predict(X_test_scaled)
-    occupancy = "Ocupado" if y_pred[0] > 0.5 else "No Ocupado"
-    st.write(f"Predicción: {occupancy}")
-    accuracy = accuracy_score(y_test, y_pred)
-    f1 = f1_score(y_test, y_pred)
-    recall = recall_score(y_test, y_pred)
-    precision = precision_score(y_test, y_pred)
-
-    st.write("### Métricas de Evaluación")
-    st.write(f"**Accuracy:** {accuracy:.4f}")
-    st.write(f"**F1 Score:** {f1:.4f}")
-    st.write(f"**Recall Score:** {recall:.4f}")
-    st.write(f"**Precision Score:** {precision:.4f}")
+    input_df = pd.DataFrame([input_data])
+    input_scaled = scaler.transform(input_df)
+    prediction = xgb_model.predict(input_scaled)
+    resultado = "Ocupado" if prediction[0] == 1 else "No Ocupado"
+    st.write(f"**Predicción:** {resultado}")
     
     
 elif seccion == "Modelo de redes neuronales":
