@@ -244,51 +244,7 @@ elif seccion == "Modelo XGBoost":
 elif seccion == "Modelo de redes neuronales":
     st.subheader("Modelo planteado con redes neuronales")
 
-    # Convertir X_test y y_test a arrays de NumPy
-    X_test = np.array(X_test)
-    y_test = np.array(y_test)
-
-    # Cargar el modelo
-    def load_model():
-        filename = 'best_model.pkl.gz'
-        with gzip.open(filename, 'rb') as f:
-            model2 = pickle.load(f)
-        return model2
-
-    model2 = load_model()
-
-    # Verificar la forma de y_test
-    print(f"Forma de y_test: {y_test.shape}")  # Debe ser (número de muestras,)
-
-    # Si el modelo tiene una salida bidimensional, convertir y_test a one-hot encoding
-    if model2.output_shape[1] == 2:
-        from tensorflow.keras.utils import to_categorical
-        y_test_one_hot = to_categorical(y_test, num_classes=2)
-        print(f"Forma de y_test_one_hot: {y_test_one_hot.shape}")  # Debe ser (número de muestras, 2)
-    else:
-        y_test_one_hot = y_test
-
-    # Compilar el modelo
-    model2.compile(loss='binary_crossentropy', optimizer=Adam(), metrics=['accuracy'])
-
-    # Gráficos de Accuracy y Loss
-    fig, axes = plt.subplots(1, 2, figsize=(10, 3))
-    sns.lineplot(y=accuracy, x=range(1, len(accuracy) + 1), marker='o', ax=axes[0])
-    sns.lineplot(y=loss, x=range(1, len(loss) + 1), marker='o', ax=axes[1])
-    axes[0].set_title('Accuracy')
-    axes[1].set_title('Loss')
-
-    # Mostrar gráficos en Streamlit
-    st.pyplot(fig)
-
-    # Evaluación del modelo
-    try:
-        _, test_accuracy = model2.evaluate(X_test, y_test_one_hot, verbose=0)
-        st.write(f'**Accuracy del modelo en datos de prueba:** {round(test_accuracy * 100, 2)}%')
-    except Exception as e:
-        st.error(f"Error al evaluar el modelo: {str(e)}")
-
-
+ 
 # Definir el modelo
 model = Sequential([
     Dense(32, input_shape=(X_train.shape[1],), activation='relu'),
