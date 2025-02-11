@@ -209,52 +209,66 @@ elif seccion == "Modelo XGBoost":
         with gzip.open(filename, 'rb') as f:
             model = pickle.load(f)
         return model
-    model=load_model()
-    # Cargar el modelo desde el archivo comprimido
-
-     # Obtener los mejores hiperparámetros (si el modelo fue ajustado con búsqueda de hiperparámetros)
-    #if hasattr(model, "best_params_"):
-    #    best_params = model.best_params_
-    #else:
-     #   best_params = "No se encontraron hiperparámetros óptimos en el modelo."
-        
-        # Configuración de la interfaz en Streamlit
-    st.title("Predicción con Modelo XGBoost")
+     model = pickle.load(f)
+    # Predicciones y evaluación del modelo
     
-        # Mostrar los mejores hiperparámetros
-    #st.subheader("Mejores Hiperparámetros del Modelo")
-    #st.write(best_params)
-        
-        # Entrada manual de valores
-    st.subheader("Ingrese los valores para la predicción")
-    n_features = 9#model.get_booster().num_features()
-    user_input = []
-    for i in range(n_features):
-        value = st.number_input(f"Característica {i+1}", value=0.0)
-        user_input.append(value)
-        
-        # Convertir entrada a array numpy
-    input_array = np.array(user_input).reshape(1, -1)
-        
-        # Realizar predicción si el usuario lo solicita
-    if st.button("Predecir"):
-        prediction = model.predict(input_array)[0]
-        st.subheader("Resultado de la Predicción")
-        st.write(f"Predicción del modelo: {prediction}")
+    accuracy = accuracy_score(model)
+    f1 = f1_score(model)
+    recall = recall_score(model)
+    precision = precision_score(model)
 
+    # Mostrar métricas de evaluación
+    st.write(f'**Accuracy del modelo en datos de prueba:** {round(accuracy * 100, 2)}%')
+    st.write(f'**F1-Score del modelo:** {round(f1, 2)}')
+    st.write(f'**Recall del modelo:** {round(recall, 2)}')
+    st.write(f'**Precision del modelo:** {round(precision, 2)}')
+
+    # Gráfico de importancia de características
+    st.subheader("Importancia de las características")
+    feat_importances = pd.Series(model.feature_importances_, index=X.columns)
+    feat_importances = feat_importances.sort_values(ascending=True)
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    feat_importances.plot(kind='barh', ax=ax)
+    ax.set_title('Importancia de las características')
+    ax.set_xlabel('Importancia')
+    ax.set_ylabel('Características')
+    st.pyplot(fig)
+
+elif seccion == "Entrenamiento del Modelo MLP":
+    st.subheader("Entrenamiento del Modelo MLP")
+    if st.button("Entrenar Modelo"):
+        model = train_mlp()
+        st.success("Modelo entrenado con éxito")
+        st.session_state["mlp_model"] = model
+
+elif seccion == "Hacer una Predicción":
+    st.subheader("Hacer una Predicción")
+    def user_input():
+        features = {}
+        for col in df.drop(columns=["Occupancy"], errors='ignore').columns:
+            features[col] = st.slider(col, float(df[col].min()), float(df[col].max()), float(df[col].mean()))
+        return pd.DataFrame([features])
+    
+    if "mlp_model" in st.session_state:
+        input_data = user_input()
+        input_scaled = scaler.transform(input_data)
+        prediction = st.session_state["mlp_model"].predict(input_scaled)
+        occupancy = "Ocupado" if prediction[0][0] > 0.5 else "No Ocupado"
+        st.write(f"Predicción: {occupancy}")
 
 
 elif seccion == "Modelo de redes neuronales":
     st.subheader("Modelo planteado con redes neuronales")
 
     def load_model():
-        """Cargar el modelo y sus pesos desde el archivo model_weights.pkl."""
-        filename = 'best_model.pkl.gz'
-        with gzip.open(filename, 'rb') as f:
-            model = pickle.load(f)
-        return model
-    model=load_model()
-    model.compile(loss='binary_crossentropy', optimizer=Adam(), metrics=['accuracy'])
+    """Cargar el modelo y sus pesos desde el archivo model_weights.pkl."""
+    filename = 'best_model.pkl.gz'
+    with gzip.open(filename, 'rb') as f:
+        model2 = pickle.load(f)
+    return model
+    model2 = pickle.load(f)
+    model2.compile(loss='binary_crossentropy', optimizer=Adam(), metrics=['accuracy'])
 
     
     # Obtención del historial de entrenamiento
